@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+       /* Set the size of the div element that contains the map */
+      html,
+      body,
+      #map_canvas {
+        height: 100%;
+        width: 100%;
+        margin: 0px;
+        padding: 0px
+      }
+
+      #map_canvas2 {
+        height: 100%;
+        width: 100%;
+        margin: 0px;
+        padding: 0px
+      }
+
+    </style>
+
+    <script src="https://maps.googleapis.com/maps/api/js?libraries=geometry&key=AIzaSyCp1MSl1nQQEafWmunZ-11UFrfpftw_UgQ"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='asset/css/selectize.bootstrap4.css')}}">
+    
+  </head>
+  <body>
+    <h2>Simulasi <button id="proses">Proses</button></h2>
+    <table border="0">
+      
+      <tr>
+        <td valign="top">
+          <div id="map_canvas" style="width: 650px; height: 500px"></div>
+          <table border="1" width="100%">
+            <tr>
+              <th>Titik Coordinates</th>
+            </tr>
+            <tr>
+              <td valign="top">
+                <div id="input_points"></div>
+              </td>
+            </tr>
+          </table>
+          <table border="1" width="100%">
+            <tr>
+              <th>Distance Matrix</th>
+            </tr>
+            <tr>
+              <td valign="top">
+                  <table border="1">
+                    <tbody id="dm">
+                      
+                    </tbody>
+                  </table>
+                
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td valign="top">
+          <div id="map2">
+            <div id="map_canvas2" style="width: 650px; height: 500px "></div>
+            
+            <table border="1" width="100%">
+              <tr>
+                <th>Urutan</th>
+              </tr>
+              <tr>
+                <td valign="top">
+                    
+                  
+                </td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <br />
+    <br />
+    <br />
+    <br />
+
+
+    <script src="{{ url_for('static', filename='asset/lib/jquery/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='asset/lib/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+     
+      var gmarkers = [];
+      var points = [];
+      var map = null;
+
+      var map2 = null;
+      var bounds2;
+      var markers2     = [];
+      
+      var array_coord = [];
+      var array_coord_result = [];
+
+      var infowindow = new google.maps.InfoWindow({
+        size: new google.maps.Size(150, 50)
+      });
+
+
+      function initialize() {
+        var myOptions = {
+          zoom: 13,
+          center: new google.maps.LatLng(37.4419, -122.1419),
+          mapTypeControl: true,
+          mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+          },
+          navigationControl: true,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+        map = new google.maps.Map(document.getElementById("map_canvas"),
+          myOptions);
+
+        map2 = new google.maps.Map(document.getElementById("map_canvas2"),
+          myOptions);
+
+        bounds2 = new google.maps.LatLngBounds();
+
+        google.maps.event.addListener(map, 'click', function() {
+          infowindow.close();
+        });
+
+
+        google.maps.event.addListener(map, "click", function(evt) {
+          if (evt.latLng) {
+            var latlng = evt.latLng;
+            var marker = createMarker(latlng, gmarkers.length + 1);
+            points.push(latlng);
+            gmarkers.push(marker);
+
+          }
+        });
+      }
+
+      function removeMarker(latlng) {
+        for (var i = 0; i < gmarkers.length; i++) {
+          if (google.maps.geometry.spherical.computeDistanceBetween(
+              latlng, gmarkers[i].getPosition()) < 0.1) {
+            gmarkers[i].setMap(null);
+            gmarkers.splice(i, 1);
+          }
+        }
+        displayCoordPts();
+      }
+
+      function createMarker(latlng, marker_number) {
+        var html = "marker " + marker_number-1;
+        var marker = new google.maps.Marker({
+          position: latlng,
+          map: map,
+          label:(marker_number-1).toString(),
+          zIndex: Math.round(latlng.lat() * -100000) << 5
+        });
+        
+        array_coord.push(marker.getPosition().toUrlValue())
+        
+        displayCoordPts();
+
+        google.maps.event.addListener(marker, 'click', function() {
+          var contentString = html + "<br>" + marker.getPosition().toUrlValue();
+          infowindow.setContent(contentString);
+          infowindow.open(map, marker);
+        });
+        return marker;
+      }
+
+
+
+      function displayCoordPts() {
+        document.getElementById("input_points").innerHTML = "";
+        for (var i = 0; i < array_coord.length; i++) {
+          document.getElementById("input_points").innerHTML += (i).toString() + " - " + array_coord[i] + "<br>";
+        }
+      }
+
+      google.maps.event.addDomListener(window, "load", initialize);
+
+    
+      $("#proses").on('click',function(){
+        $('#dm').empty();
+        if (array_coord.length>0){
+          var url = "{{ url_for('proses') }}";
+          $.ajax({
+            type        : 'POST',
+            url         : url,
+            data        : JSON.stringify({'coord':array_coord}),
+            contentType : "application/json; charset=utf-8",
+            dataType    : 'json',
+            success     : function(data) {
+              array_coord_result  = data.coord
+              dm                  = data.distance_matrix
+              df                  = JSON.parse(data.df)
+
+              console.log(df)
+
+              for(var c in df){
+                coord = df[c].coord.split(",")
+                addMarkerUrutan(parseFloat(coord[0]), parseFloat(coord[1]), df[c].no, df[c].urutan);
+              }
+              
+              tr = $('<tr/>');
+              tr.append('<td><small><b>-</b></small></td>');
+              for (i=0; i < dm.length; i++){
+                tr.append('<td><small><b>' + i.toString() + '</b></small></td>');
+              }
+              $('#dm').append(tr);
+
+              for (i=0; i < dm.length; i++){
+                tr = $('<tr/>');
+                tr.append('<td><small><b>' + i.toString() + '</b></small></td>');
+                for (j=0; j < dm.length; j++){
+                  tr.append('<td><small>' + (dm[i][j]) + '</small></td>');
+                }
+                $('#dm').append(tr);
+              }
+
+            }
+          });  
+        }
+      });
+
+
+      function addMarkerUrutan(lat, lng, no, urutan) {
+
+
+        var pinImage = {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#6991fd',
+          fillOpacity: 0.8,
+          strokeColor: '#000',
+          strokeOpacity: 0.9,
+          strokeWeight: 1,
+          scale: 10
+        };
+
+        var marker2 = new google.maps.Marker({
+          position: {lat:lat,lng:lng},
+          map: map2,
+          // branch:branch,
+          title:'Marker '+no.toString(),
+          label:urutan.toString(),
+          // custcode:custcode,
+          icon:pinImage
+        });
+
+        markers2.push(marker2);
+        loc = new google.maps.LatLng(lat, lng);
+        bounds2.extend(loc);
+        map2.fitBounds(bounds2);
+        map2.panToBounds(bounds2);
+        // google.maps.event.addListener(marker2, 'click', function() {load_customer(branch,branch+custcode.toString())});
+      }
+        
+
+    </script>
+    <!--Load the API from the specified URL
+    * The async attribute allows the browser to render the page while the API loads
+    * The key parameter will contain your own API key (which is not needed for this tutorial)
+    * The callback parameter executes the initMap() function
+    -->
+  </body>
+</html>
+
+
+
+
+
