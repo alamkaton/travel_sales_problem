@@ -183,6 +183,7 @@
     
       $("#proses").on('click',function(){
         $('#dm').empty();
+        $('#result_points').empty();
         if (array_coord.length>0){
           var url = "{{ url_for('proses') }}";
           $.ajax({
