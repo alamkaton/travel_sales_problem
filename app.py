@@ -8,9 +8,13 @@ import pandas as pd
 import requests
 import json
 import urllib
+import sys
 
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
+
+from waitress import serve
+
 
 app = Flask(__name__)
  
@@ -179,4 +183,8 @@ def proses():
     
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    print(sys.argv[1])
+    if sys.argv[1] == "production":
+        serve(app, port=5050, threads=1000)
+    else:
+        app.run(debug=True,port=5050)
