@@ -68,9 +68,8 @@
               </tr>
               <tr>
                 <td valign="top">
-                    
-                  
-                </td>
+                <div id="result_points"></div>
+              </td>
               </tr>
             </table>
           </div>
@@ -202,6 +201,7 @@
               for(var c in df){
                 coord = df[c].coord.split(",")
                 addMarkerUrutan(parseFloat(coord[0]), parseFloat(coord[1]), df[c].no, df[c].urutan);
+                document.getElementById("result_points").innerHTML += df[c].no + " - " + df[c].coord + " - " + df[c].urutan + "<br>";
               }
               
               tr = $('<tr/>');
